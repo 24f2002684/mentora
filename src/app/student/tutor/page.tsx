@@ -116,7 +116,8 @@ function TutorChatContent() {
       });
 
       if (!res.ok) {
-        throw new Error("Tutor could not respond");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Tutor could not respond");
       }
 
       const data = await res.json();
@@ -129,11 +130,15 @@ function TutorChatContent() {
       setMessages((prev) => [...prev, tutorReply]);
     } catch (err: any) {
       console.error("Chat error:", err);
+      const displayMsg =
+        err?.message && !err.message.includes("could not respond")
+          ? `[Tutor Notice] ${err.message}`
+          : "I paused while evaluating your response. Please check your internet connection or try rephrasing your thought.";
       setMessages((prev) => [
         ...prev,
         {
           role: "tutor",
-          text: "I paused while evaluating your response. Please check your internet connection or try rephrasing your thought.",
+          text: displayMsg,
           timestamp: Date.now(),
         },
       ]);
