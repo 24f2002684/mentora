@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isUserAdmin, getAllAccessRoles, saveAccessRole, removeAccessRole } from "@/lib/server-roles";
+import {
+  isUserAdmin,
+  getAllAccessRoles,
+  saveAccessRole,
+  removeAccessRole,
+  getVRCFStudents,
+  assignStudentEmail,
+} from "@/lib/server-roles";
 import { Role } from "@/types";
 
 function getAdminSession(req: NextRequest) {
@@ -24,7 +31,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const roles = await getAllAccessRoles();
-    return NextResponse.json({ roles });
+    const students = getVRCFStudents();
+    return NextResponse.json({ roles, students });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -38,6 +46,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    // Action 1: Assign Google Email to a student from VRCF Excel roster
+    if (body.action === "assign_student") {
+      const { vrcfId, email } = body;
+      if (!vrcfId || !email) {
+        return NextResponse.json({ error: "Missing vrcfId or email" }, { status: 400 });
+      }
+
+      const updatedStudent = await assignStudentEmail(vrcfId, email);
+      if (!updatedStudent) {
+        return NextResponse.json({ error: "Student not found in VRCF roster" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, student: updatedStudent });
+    }
+
+    // Action 2: Add or Edit generic role in access_roles
     const { email, role, name } = body;
 
     if (!email || !role || !["student", "mentor", "trustee"].includes(role)) {
@@ -53,7 +78,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Admin POST error:", error);
+    return NextResponse.json({ error: error.message || "Failed to save role" }, { status: 500 });
   }
 }
 

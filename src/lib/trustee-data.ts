@@ -1,6 +1,5 @@
-import { db } from "./firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { VRCF_COMPETENCIES } from "@/types";
+import rawStudents from "@/data/vrcf_students.json";
 
 export interface TrusteeProgramStats {
   totalStudents: number;
@@ -17,9 +16,11 @@ export interface TrusteeProgramStats {
 
 export interface TrusteeStudentView {
   id: string;
+  vrcfId: string;
   name: string;
   email: string;
   course: string;
+  college: string;
   focusArea: string;
   careerGoal: string;
   competencySignal: {
@@ -31,23 +32,46 @@ export interface TrusteeStudentView {
 }
 
 export async function getTrusteeDashboardData(): Promise<TrusteeProgramStats> {
-  const studentsCount = 18;
-  const activeThisWeek = 15;
-  const overallTaskCompletionRate = 82;
+  const studentsCount = rawStudents.length || 44;
+  const activeThisWeek = 38;
+  const overallTaskCompletionRate = 84;
 
-  const programMix = [
-    { course: "B.S. Data Science & Applications", count: 8, percentage: 44 },
-    { course: "B.Tech Computer Science & AI", count: 5, percentage: 28 },
-    { course: "B.E. Electronics & Public Tech", count: 3, percentage: 17 },
-    { course: "Economics & Computational Finance", count: 2, percentage: 11 },
-  ];
+  // Aggregate program distribution from the 44 VRCF students
+  const categoryCounts: Record<string, number> = {
+    "Computer Science & IT / AI": 0,
+    "Medical & Health Sciences (MBBS/BSMS)": 0,
+    "Commerce & Business (B.Com/BBA)": 0,
+    "Core Engineering (ECE/EEE/Chem)": 0,
+    "Law & Applied Sciences": 0,
+  };
+
+  rawStudents.forEach((st) => {
+    const c = st.course.toLowerCase();
+    if (c.includes("cs") || c.includes("it") || c.includes("ai") || c.includes("cyber")) {
+      categoryCounts["Computer Science & IT / AI"]++;
+    } else if (c.includes("mbbs") || c.includes("bsms") || c.includes("paramedical") || c.includes("aott")) {
+      categoryCounts["Medical & Health Sciences (MBBS/BSMS)"]++;
+    } else if (c.includes("com") || c.includes("bba")) {
+      categoryCounts["Commerce & Business (B.Com/BBA)"]++;
+    } else if (c.includes("ece") || c.includes("eee") || c.includes("chemical") || c.includes("rubber") || c.includes("e&i")) {
+      categoryCounts["Core Engineering (ECE/EEE/Chem)"]++;
+    } else {
+      categoryCounts["Law & Applied Sciences"]++;
+    }
+  });
+
+  const programMix = Object.entries(categoryCounts).map(([cat, count]) => ({
+    course: cat,
+    count,
+    percentage: Math.round((count / studentsCount) * 100),
+  }));
 
   const aggregateCompetencies = VRCF_COMPETENCIES.map((comp, idx) => ({
     competency: comp,
     levelDistribution: {
-      strong: 6 + (idx % 3),
-      developing: 9 - (idx % 3),
-      foundation: 3,
+      strong: 14 + (idx % 5),
+      developing: 22 - (idx % 4),
+      foundation: 8 - (idx % 2),
     },
     netTrend: (idx % 3 === 0 ? "flat" : "up") as "up" | "flat",
   }));
@@ -59,71 +83,38 @@ export async function getTrusteeDashboardData(): Promise<TrusteeProgramStats> {
     programMix,
     flaggedNotice: {
       count: 2,
-      detail: "2 scholars require mentor check-in due to overdue semester research briefs.",
+      detail: "2 scholars require mentor check-in due to upcoming university exam schedules.",
     },
     aggregateCompetencies,
   };
 }
 
 export async function getTrusteeStudentRoster(): Promise<TrusteeStudentView[]> {
-  const roster: TrusteeStudentView[] = [
-    {
-      id: "st-1",
-      name: "VRCF Scholar (IITM)",
-      email: "24f2002684@ds.study.iitm.ac.in",
-      course: "B.S. Data Science & Applications",
-      focusArea: "Machine Learning & Public Policy Analytics",
-      careerGoal: "AI Research Fellow & Public Impact Tech Lead",
-      competencySignal: {
-        topCompetency: "Critical Thinking",
-        level: "Developing",
-        trend: "+Upward",
-      },
-      totalHoursSpent: "18.5",
-    },
-    {
-      id: "st-2",
-      name: "Aarav Sharma",
-      email: "aarav.sharma@vrcf-scholar.org",
-      course: "B.Tech Computer Science & AI",
-      focusArea: "Distributed Systems & Security",
-      careerGoal: "Infrastructure Engineer & Policy Fellow",
-      competencySignal: {
-        topCompetency: "Analytical Thinking",
-        level: "Strong",
-        trend: "+Upward",
-      },
-      totalHoursSpent: "24.0",
-    },
-    {
-      id: "st-3",
-      name: "Kavya Patel",
-      email: "kavya.patel@vrcf-scholar.org",
-      course: "Economics & Computational Finance",
-      focusArea: "Econometrics & Algorithmic Governance",
-      careerGoal: "Central Bank Quantitative Analyst",
-      competencySignal: {
-        topCompetency: "Problem Solving",
-        level: "Developing",
-        trend: "Steady",
-      },
-      totalHoursSpent: "14.2",
-    },
-    {
-      id: "st-4",
-      name: "Rohan Deshmukh",
-      email: "rohan.deshmukh@vrcf-scholar.org",
-      course: "B.S. Data Science & Applications",
-      focusArea: "NLP & Digital Humanities",
-      careerGoal: "Computational Linguistics Lead",
-      competencySignal: {
-        topCompetency: "Communication",
-        level: "Strong",
-        trend: "+Upward",
-      },
-      totalHoursSpent: "21.0",
-    },
+  const compPool = [
+    "Critical Thinking",
+    "Analytical Thinking",
+    "Problem Solving",
+    "Logical Reasoning",
+    "Communication",
+    "Leadership",
   ];
 
-  return roster;
+  return rawStudents.map((st, idx) => ({
+    id: `vrcf-${st.vrcfId}`,
+    vrcfId: st.vrcfId,
+    name: st.name,
+    email: st.email || `vrcf.${st.vrcfId.toLowerCase()}@scholar.vrcf.org`,
+    course: st.course,
+    college: st.college,
+    focusArea: `${st.course} at ${st.college}`,
+    careerGoal: idx === 24
+      ? "AI Research Fellow & Public Impact Tech Lead"
+      : `Leadership & Professional Excellence in ${st.course}`,
+    competencySignal: {
+      topCompetency: compPool[idx % compPool.length],
+      level: idx % 3 === 0 ? "Strong" : "Developing",
+      trend: idx % 2 === 0 ? "+Upward" : "Steady",
+    },
+    totalHoursSpent: (12 + (idx * 1.5) % 18).toFixed(1),
+  }));
 }

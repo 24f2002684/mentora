@@ -1,0 +1,354 @@
+[
+  {
+    "sno": 1,
+    "vrcfId": "003",
+    "name": "Lakshna - R",
+    "course": "B . Com",
+    "college": "Govt Arts College - Covai",
+    "email": ""
+  },
+  {
+    "sno": 2,
+    "vrcfId": "004",
+    "name": "Dinesh Kumar",
+    "course": "B . Com",
+    "college": "Sri Amaraavahi College of Arts & Science - Karur",
+    "email": ""
+  },
+  {
+    "sno": 3,
+    "vrcfId": "005",
+    "name": "Mukil Vendan",
+    "course": "BE - CS",
+    "college": "Govt College of Technology  ( Autonomous) - Covai",
+    "email": ""
+  },
+  {
+    "sno": 4,
+    "vrcfId": "006",
+    "name": "Selva leaka",
+    "course": "BSC - Agri",
+    "college": "AC & RI - Thajavur",
+    "email": ""
+  },
+  {
+    "sno": 5,
+    "vrcfId": "007",
+    "name": "Pavithra -P",
+    "course": "BSMS",
+    "college": "Sir Issac Newton Siddha Medical College - Nagai",
+    "email": ""
+  },
+  {
+    "sno": 6,
+    "vrcfId": "008",
+    "name": "Varsha",
+    "course": "BBA",
+    "college": "Govt Arts College - Karur",
+    "email": ""
+  },
+  {
+    "sno": 7,
+    "vrcfId": "009",
+    "name": "Madhu M",
+    "course": "ECE",
+    "college": "University College of Engineering (BIT) Campus,Anna University, Tiruchirapalli.",
+    "email": ""
+  },
+  {
+    "sno": 8,
+    "vrcfId": "011",
+    "name": "Ashwini",
+    "course": "MBBS",
+    "college": "Govt Kilpauk Medical College - Chennai",
+    "email": ""
+  },
+  {
+    "sno": 9,
+    "vrcfId": "012",
+    "name": "Muthulakshmi",
+    "course": "B . Com",
+    "college": "JayaRaj Annabhakiyam Womens College",
+    "email": ""
+  },
+  {
+    "sno": 10,
+    "vrcfId": "015",
+    "name": "Suganya",
+    "course": "EEE",
+    "college": "NIT - Tiruchi",
+    "email": ""
+  },
+  {
+    "sno": 11,
+    "vrcfId": "016",
+    "name": "Rohini",
+    "course": "Chemical Eng",
+    "college": "NIT - Tiruchi",
+    "email": ""
+  },
+  {
+    "sno": 12,
+    "vrcfId": "017",
+    "name": "Aakash B",
+    "course": "Engineering",
+    "college": "SSN - Chennai",
+    "email": ""
+  },
+  {
+    "sno": 13,
+    "vrcfId": "018",
+    "name": "Jasmiya J",
+    "course": "B.COM",
+    "college": "Ethiraj College - Chennai",
+    "email": ""
+  },
+  {
+    "sno": 14,
+    "vrcfId": "019",
+    "name": "S. Saruthi",
+    "course": "Law",
+    "college": "Dr. Ambedkar Govt law College - Chennai",
+    "email": ""
+  },
+  {
+    "sno": 15,
+    "vrcfId": "021",
+    "name": "Ramya",
+    "course": "BSMS",
+    "college": "Sir Issac Newton Siddha Medical College - Nagai",
+    "email": ""
+  },
+  {
+    "sno": 16,
+    "vrcfId": "022",
+    "name": "Sivasithrakumar",
+    "course": "BSMS",
+    "college": "Sir Issac Newton Siddha Medical College - Nagai",
+    "email": ""
+  },
+  {
+    "sno": 17,
+    "vrcfId": "023",
+    "name": "Vijay",
+    "course": "B.Tech CSBS",
+    "college": "Thiagarajar College of Engineering - Madurai",
+    "email": ""
+  },
+  {
+    "sno": 18,
+    "vrcfId": "024",
+    "name": "Janardhanan B",
+    "course": "Rubber&Plastics",
+    "college": "MIT - Chennai",
+    "email": ""
+  },
+  {
+    "sno": 19,
+    "vrcfId": "025",
+    "name": "Johnveshin",
+    "course": "B.Sc AOTT",
+    "college": "Govt thiruvarur medical college -thiruvarur",
+    "email": ""
+  },
+  {
+    "sno": 20,
+    "vrcfId": "026",
+    "name": "C Meena",
+    "course": "Paramedical",
+    "college": "Sir Issac Newton College of Pharmacy - Nagai",
+    "email": ""
+  },
+  {
+    "sno": 21,
+    "vrcfId": "027",
+    "name": "Kaviya S",
+    "course": "B.SC - Bio Tec",
+    "college": "SRM ARTS & Scince  College - Chengalpattu",
+    "email": ""
+  },
+  {
+    "sno": 22,
+    "vrcfId": "029",
+    "name": "K VIJAYARAGAVAN",
+    "course": "AIDS",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 23,
+    "vrcfId": "030",
+    "name": "S KOMUGI",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 24,
+    "vrcfId": "031",
+    "name": "BALABHARATHI",
+    "course": "IT",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 25,
+    "vrcfId": "032",
+    "name": "SUHAIL AKTHAR S SM",
+    "course": "B.Tech. IT",
+    "college": "Chennai Institute of Technology",
+    "email": "24f2002684@ds.study.iitm.ac.in"
+  },
+  {
+    "sno": 26,
+    "vrcfId": "033",
+    "name": "RAGHUL M",
+    "course": "ECE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 27,
+    "vrcfId": "034",
+    "name": "kaveen",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 28,
+    "vrcfId": "035",
+    "name": "SUPRITHA R",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 29,
+    "vrcfId": "036",
+    "name": "Kalaivani",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 30,
+    "vrcfId": "037",
+    "name": "Kaviya M",
+    "course": "AIDS",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 31,
+    "vrcfId": "038",
+    "name": "Nilashini",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 32,
+    "vrcfId": "039",
+    "name": "Monisha E",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 33,
+    "vrcfId": "040",
+    "name": "Ashwini A",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 34,
+    "vrcfId": "041",
+    "name": "Jannathur Raabiya K",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 35,
+    "vrcfId": "042",
+    "name": "Suja S",
+    "course": "B.TECH IT",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 36,
+    "vrcfId": "043",
+    "name": "Shakilan R",
+    "course": "B.TECH AIDS",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 37,
+    "vrcfId": "044",
+    "name": "Najiya Nasrin",
+    "course": "B.TECH AIML",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 38,
+    "vrcfId": "045",
+    "name": "Keshavarthan K",
+    "course": "B.E CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 39,
+    "vrcfId": "046",
+    "name": "Arthradan Muthu G",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 40,
+    "vrcfId": "047",
+    "name": "Bhavani M",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 41,
+    "vrcfId": "048",
+    "name": "Surendar",
+    "course": "CSE",
+    "college": "Chennai Institute of Technology",
+    "email": ""
+  },
+  {
+    "sno": 42,
+    "vrcfId": "049",
+    "name": "AVP Varshith",
+    "course": "B.Sc. Cyber Security",
+    "college": "KG College of Arts & Science",
+    "email": ""
+  },
+  {
+    "sno": 43,
+    "vrcfId": "050",
+    "name": "Nithiya Sri G",
+    "course": "BE CSE(AI)",
+    "college": "RMK College Engineering and Technology",
+    "email": ""
+  },
+  {
+    "sno": 44,
+    "vrcfId": "051",
+    "name": "Ram Prasath",
+    "course": "E&I",
+    "college": "MIT",
+    "email": ""
+  }
+]

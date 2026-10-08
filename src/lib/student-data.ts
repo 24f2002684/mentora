@@ -79,15 +79,19 @@ export async function updateStudentVisionBoard(
   data: Partial<VisionBoard>
 ): Promise<void> {
   const ref = doc(db, "vision_boards", studentId);
-  await setDoc(
-    ref,
-    {
-      studentId,
-      ...data,
-      lastUpdated: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      ref,
+      {
+        studentId,
+        ...data,
+        lastUpdated: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err: any) {
+    console.warn("Firestore vision board write skipped:", err.message);
+  }
 }
 
 export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {

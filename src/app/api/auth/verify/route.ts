@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveUserAccessRole, isUserAdmin } from "@/lib/server-roles";
+import { resolveUserAccessRole, isUserAdmin, getVRCFStudents } from "@/lib/server-roles";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Role found! Ensure users collection has record
+    // Role found! Check if matching a VRCF student
+    const vrcfStudent = getVRCFStudents().find((s) => s.email && s.email.toLowerCase() === email);
+
+    // Ensure users collection has record (with try-catch to prevent permission block)
     try {
       const userRef = doc(db, "users", uid);
       const userSnap = await getDoc(userRef);
@@ -65,11 +68,14 @@ export async function POST(req: NextRequest) {
           email,
           name: accessRole.name || displayName,
           role: accessRole.role,
+          course: vrcfStudent?.course || (accessRole.role === "student" ? "B.Tech. IT" : undefined),
+          college: vrcfStudent?.college || (accessRole.role === "student" ? "Chennai Institute of Technology" : undefined),
+          vrcfId: vrcfStudent?.vrcfId || undefined,
           createdAt: new Date().toISOString(),
         });
       }
     } catch (e) {
-      console.warn("Could not write to users doc:", e);
+      console.warn("Could not write to users doc (permissions or network):", e);
     }
 
     const sessionPayload = {
