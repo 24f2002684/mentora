@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import DashboardShell from "@/components/layout/DashboardShell";
 import { useAuth } from "@/lib/auth-context";
 import { getStudentVisionBoard, updateStudentCompetencyScore } from "@/lib/student-data";
-import { TutorMode, ChatMessage, VisionBoard } from "@/types";
+import { TutorMode, ChatMessage, VisionBoard, AIModelProvider } from "@/types";
 import { useSearchParams } from "next/navigation";
 import {
   Bot,
@@ -25,6 +25,7 @@ import {
   X,
   ChevronRight,
   MessageSquare,
+  Cpu,
 } from "lucide-react";
 
 const TUTOR_MODES: { mode: TutorMode; description: string }[] = [
@@ -54,6 +55,15 @@ function TutorChatContent() {
   const preloadedTopic = searchParams.get("topic") || "";
   const preloadedTaskId = searchParams.get("taskId") || "";
 
+  // AI Model Engine State (Claude vs Gemini)
+  const [selectedModel, setSelectedModel] = useState<AIModelProvider>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mentora_preferred_model") as AIModelProvider;
+      if (saved === "claude" || saved === "gemini") return saved;
+    }
+    return "claude"; // Default to Claude
+  });
+
   const [visionBoard, setVisionBoard] = useState<VisionBoard | null>(null);
   const [currentMode, setCurrentMode] = useState<TutorMode>("Learn");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -62,6 +72,13 @@ function TutorChatContent() {
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [loggedComps, setLoggedComps] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState(`session-${Date.now()}`);
+
+  const handleSelectModel = (model: AIModelProvider) => {
+    setSelectedModel(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mentora_preferred_model", model);
+    }
+  };
 
   // Critical Thinking Evaluation State
   const [latestEvaluation, setLatestEvaluation] = useState<{
@@ -245,6 +262,7 @@ function TutorChatContent() {
         body: JSON.stringify({
           messages: newHistory,
           mode: currentMode,
+          modelProvider: selectedModel,
           course: visionBoard?.course,
           focusArea: visionBoard?.focusArea,
           careerGoal: visionBoard?.careerGoal,
@@ -262,6 +280,7 @@ function TutorChatContent() {
       const tutorReply: ChatMessage = {
         role: "tutor",
         text: data.text,
+        provider: data.provider || selectedModel,
         timestamp: Date.now(),
       };
 
@@ -423,6 +442,48 @@ function TutorChatContent() {
         </div>
       )}
 
+      {/* AI Model Selector Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-surface border border-theme">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-theme uppercase tracking-wider mr-1">
+            <Cpu className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            <span>AI Model:</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-xl border border-theme">
+            <button
+              type="button"
+              onClick={() => handleSelectModel("claude")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedModel === "claude"
+                  ? "bg-amber-500 text-white shadow-sm font-semibold"
+                  : "text-muted-theme hover:text-primary-theme"
+              }`}
+              title="Anthropic Claude 3.5 Sonnet — deep Socratic inquiry and analytical reasoning"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Claude 3.5 Sonnet</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectModel("gemini")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedModel === "gemini"
+                  ? "bg-teal-600 dark:bg-teal-400 text-white dark:text-[#0B1413] shadow-sm font-semibold"
+                  : "text-muted-theme hover:text-primary-theme"
+              }`}
+              title="Google Gemini Flash — fast responsive model"
+            >
+              <Bot className="w-3 h-3" />
+              <span>Gemini Flash</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-muted-theme">
+          Active Engine: <strong className="text-primary-theme">{selectedModel === "claude" ? "Anthropic Claude" : "Google Gemini"}</strong>
+        </div>
+      </div>
+
       {/* Mode Selector Pill Buttons */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -464,6 +525,17 @@ function TutorChatContent() {
               >
                 <div className="flex items-center gap-2 mb-1 text-[11px] text-muted-theme font-medium px-1">
                   <span>{isUser ? "You" : "VRCF Tutor"}</span>
+                  {!isUser && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${
+                        (msg.provider || selectedModel) === "claude"
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                          : "bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30"
+                      }`}
+                    >
+                      {(msg.provider || selectedModel) === "claude" ? "Claude 3.5" : "Gemini"}
+                    </span>
+                  )}
                 </div>
 
                 <div

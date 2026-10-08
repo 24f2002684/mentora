@@ -164,42 +164,19 @@ export async function getTrusteeStudentRoster(): Promise<TrusteeStudentView[]> {
     // Merge any live tasks assigned or graded
     const localTasks = typeof window !== "undefined" ? getLocalTasks() : [];
     const matchedLocal = localTasks.filter(
-      (t) => t.studentId === `vrcf-${st.vrcfId}` || (st.email && t.studentEmail && t.studentEmail.toLowerCase() === st.email.toLowerCase())
+      (t) =>
+        t.studentId === `vrcf-${st.vrcfId}` ||
+        t.studentId === st.vrcfId ||
+        (st.email && t.studentEmail && t.studentEmail.toLowerCase() === st.email.toLowerCase())
     );
 
-    const baseTasks = [
-      {
-        id: `t1-${st.vrcfId}`,
-        title: `Analytical Case Review: Core Principles in ${st.course}`,
-        status: "done" as const,
-        dueDate: "2026-10-18",
-        feedback: "Outstanding rigor in examining initial premises. Commended for clarity and ethical depth.",
-      },
-      {
-        id: `t2-${st.vrcfId}`,
-        title: "Socratic Reflection on First-Principles Problem Solving",
-        status: (idx % 2 === 0 ? "in_progress" : "done") as "in_progress" | "done",
-        dueDate: "2026-10-24",
-        feedback: idx % 2 !== 0 ? "Well structured breakdown. Encouraged to explore alternative hypotheses." : undefined,
-      },
-      {
-        id: `t3-${st.vrcfId}`,
-        title: "Semester Leadership Brief & Milestone Review",
-        status: "open" as const,
-        dueDate: "2026-10-30",
-      },
-    ];
-
-    const tasks = [
-      ...matchedLocal.map((ml) => ({
-        id: ml.id,
-        title: ml.title,
-        status: ml.status as "open" | "in_progress" | "done",
-        dueDate: ml.dueDate,
-        feedback: ml.remarks || ml.feedback,
-      })),
-      ...baseTasks,
-    ];
+    const tasks = matchedLocal.map((ml) => ({
+      id: ml.id,
+      title: ml.title,
+      status: ml.status as "open" | "in_progress" | "done",
+      dueDate: ml.dueDate,
+      feedback: ml.remarks || ml.feedback,
+    }));
 
     const competencies = [
       { name: "Critical Thinking", level: "Strong" as const, trend: "+Upward" as const, evidenceCount: 7 },

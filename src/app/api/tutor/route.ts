@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     const {
       messages,
       mode = "Learn",
+      modelProvider = "claude",
       course = "B.S. Data Science & Applications",
       focusArea = "Machine Learning & Public Policy Analytics",
       careerGoal = "AI Research Fellow & Public Impact Tech Lead",
@@ -193,35 +194,54 @@ At the very end of your response, append an evaluation comment on a new line:
 <!-- EVAL: {"score": 88, "level": "Strong", "critique": "Solid inquiry with well-formulated counter-hypothesis."} -->`;
 
     let replyContent: string | null = null;
-    let providerUsed: "gemini" | "claude" = "gemini";
+    let providerUsed: "gemini" | "claude" = modelProvider === "gemini" ? "gemini" : "claude";
 
-    // 1. PRIMARY: Google Gemini API (Free tier model)
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey) {
-      try {
-        replyContent = await callGemini(geminiKey, systemPrompt, messages);
-        providerUsed = "gemini";
-      } catch (geminiError: any) {
-        console.warn("Primary Gemini provider failed, attempting Claude fallback:", geminiError.message);
-      }
-    }
+    const claudeKey = process.env.ANTHROPIC_API_KEY;
 
-    // 2. SECONDARY: Anthropic Claude API fallback
-    if (!replyContent) {
-      const claudeKey = process.env.ANTHROPIC_API_KEY;
+    if (modelProvider === "claude") {
+      // 1. Primary: Anthropic Claude API
       if (claudeKey) {
         try {
           replyContent = await callClaude(claudeKey, systemPrompt, messages);
           providerUsed = "claude";
         } catch (claudeError: any) {
-          console.error("Secondary Claude provider failed as well:", claudeError.message);
+          console.warn("Primary Claude provider failed, attempting Gemini fallback:", claudeError.message);
+        }
+      }
+      // 2. Secondary fallback: Gemini API
+      if (!replyContent && geminiKey) {
+        try {
+          replyContent = await callGemini(geminiKey, systemPrompt, messages);
+          providerUsed = "gemini";
+        } catch (geminiError: any) {
+          console.error("Gemini fallback failed as well:", geminiError.message);
+        }
+      }
+    } else {
+      // 1. Primary: Google Gemini API
+      if (geminiKey) {
+        try {
+          replyContent = await callGemini(geminiKey, systemPrompt, messages);
+          providerUsed = "gemini";
+        } catch (geminiError: any) {
+          console.warn("Primary Gemini provider failed, attempting Claude fallback:", geminiError.message);
+        }
+      }
+      // 2. Secondary fallback: Claude API
+      if (!replyContent && claudeKey) {
+        try {
+          replyContent = await callClaude(claudeKey, systemPrompt, messages);
+          providerUsed = "claude";
+        } catch (claudeError: any) {
+          console.error("Claude fallback failed as well:", claudeError.message);
         }
       }
     }
 
     if (!replyContent) {
       throw new Error(
-        "Tutor service temporarily unavailable. Both Gemini and Claude APIs failed or are unconfigured."
+        "Tutor service temporarily unavailable. Both Claude and Gemini APIs failed or are unconfigured."
       );
     }
 

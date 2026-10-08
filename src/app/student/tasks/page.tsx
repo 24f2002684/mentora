@@ -9,6 +9,7 @@ import {
   updateTaskStatus,
 } from "@/lib/student-data";
 import { TaskItem, VRCF_COMPETENCIES } from "@/types";
+import rawStudents from "@/data/vrcf_students.json";
 import {
   CheckSquare,
   Plus,
@@ -25,16 +26,35 @@ import {
   Award,
   MessageSquare,
   Send,
+  UserCheck,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function StudentTasksPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const studentId = user?.uid || "student-default";
   const studentEmail = user?.email || undefined;
   const router = useRouter();
 
+  // Active scholar identity resolution
+  const defaultScholarId = () => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("mentora_active_scholar_id");
+      if (stored) return stored.replace("vrcf-", "");
+    }
+    // Check if email matches a VRCF student
+    if (studentEmail) {
+      const match = rawStudents.find(
+        (s) => s.email && s.email.toLowerCase() === studentEmail.toLowerCase()
+      );
+      if (match) return match.vrcfId;
+    }
+    return "032"; // Default VRCF scholar
+  };
+
+  const [activeScholarId, setActiveScholarId] = useState<string>("032");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "open" | "mentor" | "done">("all");
@@ -50,10 +70,14 @@ export default function StudentTasksPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    setActiveScholarId(defaultScholarId());
+  }, [studentEmail]);
+
+  useEffect(() => {
     async function load() {
       if (!user) return;
       try {
-        const data = await getStudentTasks(studentId, studentEmail);
+        const data = await getStudentTasks(studentId, studentEmail, `vrcf-${activeScholarId}`);
         setTasks(data);
       } catch (e) {
         console.error("Error loading tasks:", e);
@@ -70,7 +94,15 @@ export default function StudentTasksPage() {
     return () => {
       window.removeEventListener("mentora_task_updated", handleTaskUpdated);
     };
-  }, [user, studentId, studentEmail]);
+  }, [user, studentId, studentEmail, activeScholarId]);
+
+  const handleScholarSwitch = (newVrcfId: string) => {
+    setActiveScholarId(newVrcfId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mentora_active_scholar_id", `vrcf-${newVrcfId}`);
+      window.dispatchEvent(new CustomEvent("mentora_task_updated"));
+    }
+  };
 
   const handleStatusChange = async (taskId: string, newStatus: "open" | "in_progress" | "done") => {
     if (newStatus === "done") {
@@ -171,6 +203,45 @@ export default function StudentTasksPage() {
           </button>
         </div>
 
+        {/* Scholar Account Switcher Banner */}
+        <div className="card-theme p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-teal-500/[0.04] border border-teal-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <UserCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                  Active Scholar Portfolio
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 font-mono">
+                  VRCF-{activeScholarId}
+                </span>
+              </div>
+              <p className="text-xs text-muted-theme">
+                Tasks assigned by mentors to this scholar will reflect immediately below.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-theme shrink-0">
+              Scholar Profile:
+            </label>
+            <select
+              value={activeScholarId}
+              onChange={(e) => handleScholarSwitch(e.target.value)}
+              className="input-theme text-xs py-1.5 px-3 max-w-xs"
+            >
+              {rawStudents.map((st) => (
+                <option key={st.vrcfId} value={st.vrcfId}>
+                  [{st.vrcfId}] {st.name} &mdash; {st.course}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Filter Pills */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-muted-theme mr-1">Filter:</span>
@@ -199,10 +270,23 @@ export default function StudentTasksPage() {
         {/* Tasks List */}
         <div className="space-y-4">
           {filteredTasks.length === 0 ? (
-            <div className="card-theme p-12 text-center text-muted-theme">
-              <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-40 text-teal-600" />
-              <p className="text-base font-semibold text-primary-theme">No tasks match this filter</p>
-              <p className="text-xs mt-1">Add a self task or check back after your next mentor review.</p>
+            <div className="card-theme p-12 text-center text-muted-theme space-y-3">
+              <CheckCircle2 className="w-12 h-12 mx-auto text-teal-600/40" />
+              <div>
+                <p className="text-base font-bold text-primary-theme">No tasks have been assigned yet</p>
+                <p className="text-xs text-muted-theme mt-1 max-w-md mx-auto">
+                  Your mentor has not assigned any tasks to this scholar profile yet. Tasks assigned in the mentor dashboard will reflect here in real-time.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="btn-secondary text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Add Self-Directed Task</span>
+                </button>
+              </div>
             </div>
           ) : (
             filteredTasks.map((task) => (

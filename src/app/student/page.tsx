@@ -578,7 +578,11 @@ export default function StudentHomePage() {
                 {openTasks.length} Tasks Open
               </div>
               <p className="text-xs text-muted-theme mt-1.5 flex items-center justify-between">
-                <span>{tasks.filter((t) => t.assignedBy === "mentor" && t.status !== "done").length} Mentor-assigned</span>
+                <span>
+                  {tasks.filter((t) => t.assignedBy === "mentor" && t.status !== "done").length > 0
+                    ? `${tasks.filter((t) => t.assignedBy === "mentor" && t.status !== "done").length} Mentor-assigned`
+                    : "No tasks assigned yet"}
+                </span>
                 <Link href="/student/tasks" className="text-teal-600 dark:text-teal-400 font-medium hover:underline">
                   View Tasks &rarr;
                 </Link>

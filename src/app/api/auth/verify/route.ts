@@ -83,6 +83,9 @@ export async function POST(req: NextRequest) {
       email,
       name: accessRole.name || displayName,
       role: accessRole.role,
+      vrcfId: vrcfStudent?.vrcfId,
+      course: vrcfStudent?.course,
+      college: vrcfStudent?.college,
       isAdmin: isUserAdmin(email),
       timestamp: Date.now(),
     };

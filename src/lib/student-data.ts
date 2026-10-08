@@ -100,7 +100,14 @@ export function getLocalTasks(): TaskItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem("mentora_tasks");
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const list: TaskItem[] = JSON.parse(raw);
+    // Purge legacy seeded dummy tasks so clean state is guaranteed
+    const cleaned = list.filter((t) => !t.id.startsWith("task-seed-") && !t.id.startsWith("review-seed-"));
+    if (cleaned.length !== list.length) {
+      localStorage.setItem("mentora_tasks", JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return [];
   }
@@ -125,25 +132,66 @@ export function saveLocalTask(task: TaskItem): void {
   }
 }
 
-export async function getStudentTasks(studentId: string, studentEmail?: string): Promise<TaskItem[]> {
+export async function getStudentTasks(
+  studentId: string,
+  studentEmail?: string,
+  activeScholarId?: string
+): Promise<TaskItem[]> {
   const tasks: TaskItem[] = [];
+
+  // Determine effective scholar identity for matching
+  const effectiveScholar = activeScholarId || (typeof window !== "undefined" ? localStorage.getItem("mentora_active_scholar_id") || undefined : undefined);
+
   try {
-    const q = query(collection(db, "tasks"), where("studentId", "==", studentId));
-    const snap = await getDocs(q);
-    snap.forEach((d) => {
+    // 1. Query by studentId (e.g. Firebase UID or "vrcf-032")
+    const q1 = query(collection(db, "tasks"), where("studentId", "==", studentId));
+    const snap1 = await getDocs(q1);
+    snap1.forEach((d) => {
       tasks.push({ id: d.id, ...d.data() } as TaskItem);
     });
+
+    // 2. Query by studentEmail if provided
+    if (studentEmail) {
+      const q2 = query(collection(db, "tasks"), where("studentEmail", "==", studentEmail));
+      const snap2 = await getDocs(q2);
+      snap2.forEach((d) => {
+        if (!tasks.some((t) => t.id === d.id)) {
+          tasks.push({ id: d.id, ...d.data() } as TaskItem);
+        }
+      });
+    }
+
+    // 3. Query by effective scholar ID if distinct
+    if (effectiveScholar && effectiveScholar !== studentId) {
+      const q3 = query(collection(db, "tasks"), where("studentId", "==", effectiveScholar));
+      const snap3 = await getDocs(q3);
+      snap3.forEach((d) => {
+        if (!tasks.some((t) => t.id === d.id)) {
+          tasks.push({ id: d.id, ...d.data() } as TaskItem);
+        }
+      });
+    }
   } catch (err) {
-    console.warn("Error fetching tasks:", err);
+    console.warn("Firestore task read skipped:", err);
   }
 
-  // Merge with local tasks
+  // Merge with local storage tasks (guaranteed zero-latency cross-page consistency)
   const localList = getLocalTasks();
   for (const lt of localList) {
-    const matchesId = lt.studentId === studentId || lt.studentId === "student-default";
-    const matchesEmail = studentEmail && lt.studentEmail && lt.studentEmail.toLowerCase() === studentEmail.toLowerCase();
-    const matchesVrcf = studentId.startsWith("vrcf-") && lt.studentId === studentId;
-    if (matchesId || matchesEmail || matchesVrcf) {
+    const matchesId = lt.studentId === studentId;
+    const matchesEmail = Boolean(
+      studentEmail && lt.studentEmail && lt.studentEmail.toLowerCase() === studentEmail.toLowerCase()
+    );
+    const matchesScholar = Boolean(
+      effectiveScholar && (
+        lt.studentId === effectiveScholar ||
+        lt.studentId === `vrcf-${effectiveScholar}` ||
+        `vrcf-${lt.studentId}` === effectiveScholar
+      )
+    );
+    const matchesDefault = studentId === "student-default" && (!effectiveScholar || effectiveScholar === lt.studentId);
+
+    if (matchesId || matchesEmail || matchesScholar || matchesDefault) {
       const existingIdx = tasks.findIndex((t) => t.id === lt.id);
       if (existingIdx >= 0) {
         tasks[existingIdx] = { ...tasks[existingIdx], ...lt };
@@ -153,63 +201,7 @@ export async function getStudentTasks(studentId: string, studentEmail?: string):
     }
   }
 
-  if (tasks.length === 0) {
-    // Seed default tasks for demo & first time
-    const defaultTasks: TaskItem[] = [
-      {
-        id: "task-seed-1",
-        studentId,
-        studentName: "VRCF Scholar",
-        title: "Analyze algorithmic bias in university admissions case study",
-        description: "Evaluate disparate impact metrics and formulate 3 mitigation strategies using Socratic principles.",
-        assignedBy: "mentor",
-        mentorId: "mentor-1",
-        mentorName: "VRCF Mentor (Suhail Akthar)",
-        dueDate: "2026-10-18",
-        status: "open",
-        skills: ["Critical Thinking", "Analytical Thinking", "Innovative Thinking"],
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "task-seed-2",
-        studentId,
-        studentName: "VRCF Scholar",
-        title: "Prepare reflective brief on Socratic inquiry session",
-        description: "Synthesize key insights from your recent AI tutor practice session on logical fallacies.",
-        assignedBy: "mentor",
-        mentorId: "mentor-1",
-        mentorName: "VRCF Mentor (Suhail Akthar)",
-        dueDate: "2026-10-22",
-        status: "in_progress",
-        skills: ["Communication", "Logical Reasoning"],
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "task-seed-3",
-        studentId,
-        studentName: "VRCF Scholar",
-        title: "Review calculus optimization problems for midterm",
-        description: "Practice Lagrange multipliers and constraint optimization exercises.",
-        assignedBy: "self",
-        mentorId: null,
-        dueDate: "2026-10-25",
-        status: "open",
-        skills: ["Problem Solving", "Domain/Academic Knowledge"],
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    try {
-      for (const t of defaultTasks) {
-        saveLocalTask(t);
-        await setDoc(doc(db, "tasks", t.id), t);
-      }
-      return defaultTasks;
-    } catch {
-      return defaultTasks;
-    }
-  }
-
+  // NOTE: STRICTLY NO SEEDED DUMMY TASKS! Return empty array if none assigned.
   return tasks;
 }
 

@@ -15,6 +15,7 @@ export interface UserProfile {
   course?: string;
   focusArea?: string;
   careerGoal?: string;
+  vrcfId?: string;
   avatarUrl?: string;
   createdAt?: any;
 }
@@ -56,9 +57,12 @@ export interface TaskItem {
 
 export type TutorMode = "Learn" | "Practice" | "Challenge Me" | "Explain Back" | "Career Connect";
 
+export type AIModelProvider = "claude" | "gemini";
+
 export interface ChatMessage {
   role: "tutor" | "student";
   text: string;
+  provider?: AIModelProvider;
   timestamp: string | number;
 }
 

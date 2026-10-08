@@ -110,6 +110,12 @@ export async function assignMentorTask(params: {
   // Save to unified local storage
   saveLocalTask(newTask);
 
+  if (typeof window !== "undefined") {
+    localStorage.setItem("mentora_last_assigned_student_id", params.studentId);
+    // Sync active scholar ID so visiting student dashboard immediately reflects the assigned scholar's view
+    localStorage.setItem("mentora_active_scholar_id", params.studentId);
+  }
+
   try {
     await setDoc(doc(db, "tasks", taskId), newTask);
   } catch (err: any) {
@@ -122,7 +128,7 @@ export async function assignMentorTask(params: {
 export async function getTasksAwaitingReview(): Promise<TaskItem[]> {
   const tasksMap = new Map<string, TaskItem>();
 
-  // Load from local storage first
+  // Load from local storage first (filtered from legacy seeds)
   const localList = getLocalTasks();
   for (const t of localList) {
     if (t.status === "done" || t.status === "in_progress" || (!t.feedback && !t.remarks)) {
@@ -134,7 +140,11 @@ export async function getTasksAwaitingReview(): Promise<TaskItem[]> {
     const snap = await getDocs(collection(db, "tasks"));
     snap.forEach((d) => {
       const data = d.data() as TaskItem;
-      if (data.status === "done" || data.status === "in_progress" || (!data.feedback && !data.remarks)) {
+      if (
+        !data.id.startsWith("review-seed-") &&
+        !data.id.startsWith("task-seed-") &&
+        (data.status === "done" || data.status === "in_progress" || (!data.feedback && !data.remarks))
+      ) {
         tasksMap.set(data.id, data);
       }
     });
@@ -142,58 +152,7 @@ export async function getTasksAwaitingReview(): Promise<TaskItem[]> {
     console.warn("Firestore review read bypassed:", e.message);
   }
 
-  if (tasksMap.size === 0) {
-    const seeds: TaskItem[] = [
-      {
-        id: "review-seed-1",
-        studentId: "vrcf-032",
-        studentName: "Mohamed Rifai",
-        studentEmail: "vrcf.032@scholar.vrcf.org",
-        title: "Analyze algorithmic bias in university admissions case study",
-        description: "Evaluated disparate impact metrics and formulated 3 mitigation strategies using Socratic principles.",
-        submissionNotes: "Analyzed equalized odds vs demographic parity tradeoffs. Recommending calibrated thresholds.",
-        assignedBy: "mentor",
-        dueDate: "2026-10-18",
-        status: "done",
-        skills: ["Critical Thinking", "Analytical Thinking", "Innovative Thinking"],
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "review-seed-2",
-        studentId: "vrcf-029",
-        studentName: "Pavithra M",
-        studentEmail: "vrcf.029@scholar.vrcf.org",
-        title: "Reflective brief on AI ethics & data governance",
-        description: "Synthesized core arguments on data privacy tradeoffs in healthcare systems.",
-        submissionNotes: "Drafted brief outlining differential privacy principles for hospital clinical data.",
-        assignedBy: "mentor",
-        dueDate: "2026-10-22",
-        status: "in_progress",
-        skills: ["Communication", "Logical Reasoning"],
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "review-seed-3",
-        studentId: "vrcf-005",
-        studentName: "Sanjay Kumar S",
-        studentEmail: "vrcf.005@scholar.vrcf.org",
-        title: "Formal argument analysis on distributed consensus",
-        description: "Deconstructed Paxos vs Raft failure modes using logical proof techniques.",
-        submissionNotes: "Outlined state-machine replication invariants and network partition recovery.",
-        assignedBy: "mentor",
-        dueDate: "2026-10-25",
-        status: "done",
-        skills: ["Problem Solving", "Domain/Academic Knowledge", "Critical Thinking"],
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    for (const s of seeds) {
-      saveLocalTask(s);
-      tasksMap.set(s.id, s);
-    }
-  }
-
+  // NOTE: STRICTLY NO SEEDED DUMMY TASKS! Return empty array if no tasks awaiting review.
   return Array.from(tasksMap.values());
 }
 
