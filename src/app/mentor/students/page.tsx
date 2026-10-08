@@ -67,7 +67,7 @@ export default function MentorStudentsPage() {
               <thead className="bg-black/[0.02] dark:bg-white/[0.02] border-b border-theme text-xs text-muted-theme font-medium uppercase tracking-wider">
                 <tr>
                   <th className="py-3.5 px-6">Scholar Name</th>
-                  <th className="py-3.5 px-6">Course &amp; Academic Focus</th>
+                  <th className="py-3.5 px-6">Degree &amp; College</th>
                   <th className="py-3.5 px-6">Stated Career Goal</th>
                   <th className="py-3.5 px-6">Notable Competency Trend</th>
                   <th className="py-3.5 px-6 text-right">Actions</th>
@@ -81,8 +81,8 @@ export default function MentorStudentsPage() {
                       <div className="text-xs text-muted-theme font-mono">{student.email}</div>
                     </td>
                     <td className="py-4 px-6 text-xs">
-                      <div className="font-medium text-primary-theme">{student.course}</div>
-                      <div className="text-muted-theme mt-0.5">{student.focusArea}</div>
+                      <div className="font-semibold text-primary-theme">{student.course}</div>
+                      <div className="text-muted-theme mt-0.5">{student.college}</div>
                     </td>
                     <td className="py-4 px-6 text-xs text-teal-800 dark:text-teal-200 font-medium max-w-xs">
                       {student.careerGoal}

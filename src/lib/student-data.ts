@@ -244,3 +244,26 @@ export async function getStudentActivityStats(studentId: string) {
     tasksCompleted,
   };
 }
+
+export function getStoredAvatar(userId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(`mentora_user_avatar_${userId}`) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredAvatar(userId: string, dataUrl: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(`mentora_user_avatar_${userId}`, dataUrl);
+    window.dispatchEvent(
+      new CustomEvent("mentora_avatar_changed", {
+        detail: { userId, avatarUrl: dataUrl },
+      })
+    );
+  } catch (err) {
+    console.warn("Could not save avatar to localStorage:", err);
+  }
+}

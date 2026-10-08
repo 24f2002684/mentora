@@ -15,6 +15,7 @@ export interface UserProfile {
   course?: string;
   focusArea?: string;
   careerGoal?: string;
+  avatarUrl?: string;
   createdAt?: any;
 }
 
@@ -25,6 +26,7 @@ export interface VisionBoard {
   careerGoal: string;
   longTermGoals: string[];
   shortTermGoals: string[];
+  avatarUrl?: string;
   lastUpdated?: any;
 }
 

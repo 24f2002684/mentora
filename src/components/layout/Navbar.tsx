@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -11,6 +11,36 @@ export default function Navbar() {
   const { user, profile, role, isAdmin, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setAvatarUrl(null);
+      return;
+    }
+
+    const checkAvatar = () => {
+      try {
+        const stored = localStorage.getItem(`mentora_user_avatar_${user.uid}`);
+        setAvatarUrl(stored || user.photoURL || null);
+      } catch {
+        setAvatarUrl(user.photoURL || null);
+      }
+    };
+
+    checkAvatar();
+
+    const handleAvatarChange = (e: any) => {
+      if (e.detail?.userId === user.uid) {
+        setAvatarUrl(e.detail.avatarUrl);
+      }
+    };
+
+    window.addEventListener("mentora_avatar_changed", handleAvatarChange);
+    return () => {
+      window.removeEventListener("mentora_avatar_changed", handleAvatarChange);
+    };
+  }, [user]);
 
   const roleLabel = role === "student" ? "Scholar" : role === "mentor" ? "Mentor" : role === "trustee" ? "Trustee" : "User";
 
@@ -69,8 +99,18 @@ export default function Navbar() {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full border border-theme hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
           >
-            <div className="w-7 h-7 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-300 flex items-center justify-center text-xs font-bold">
-              {user?.displayName ? user.displayName.charAt(0).toUpperCase() : user?.email ? user.email.charAt(0).toUpperCase() : "U"}
+            <div className="w-7 h-7 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-300 flex items-center justify-center text-xs font-bold overflow-hidden border border-teal-500/20 shrink-0">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>
+                  {user?.displayName ? user.displayName.charAt(0).toUpperCase() : user?.email ? user.email.charAt(0).toUpperCase() : "U"}
+                </span>
+              )}
             </div>
             <span className="text-xs font-medium text-primary-theme max-w-[100px] truncate hidden sm:inline">
               {profile?.name || user?.displayName || user?.email?.split("@")[0] || "Account"}
