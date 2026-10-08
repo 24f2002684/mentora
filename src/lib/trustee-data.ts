@@ -1,5 +1,6 @@
 import { VRCF_COMPETENCIES } from "@/types";
 import rawStudents from "@/data/vrcf_students.json";
+import { getLocalTasks } from "./student-data";
 
 export interface TrusteeProgramStats {
   totalStudents: number;
@@ -160,7 +161,13 @@ export async function getTrusteeStudentRoster(): Promise<TrusteeStudentView[]> {
           "Establish community mentorship programs for rural first-generation college students",
         ];
 
-    const tasks = [
+    // Merge any live tasks assigned or graded
+    const localTasks = typeof window !== "undefined" ? getLocalTasks() : [];
+    const matchedLocal = localTasks.filter(
+      (t) => t.studentId === `vrcf-${st.vrcfId}` || (st.email && t.studentEmail && t.studentEmail.toLowerCase() === st.email.toLowerCase())
+    );
+
+    const baseTasks = [
       {
         id: `t1-${st.vrcfId}`,
         title: `Analytical Case Review: Core Principles in ${st.course}`,
@@ -181,6 +188,17 @@ export async function getTrusteeStudentRoster(): Promise<TrusteeStudentView[]> {
         status: "open" as const,
         dueDate: "2026-10-30",
       },
+    ];
+
+    const tasks = [
+      ...matchedLocal.map((ml) => ({
+        id: ml.id,
+        title: ml.title,
+        status: ml.status as "open" | "in_progress" | "done",
+        dueDate: ml.dueDate,
+        feedback: ml.remarks || ml.feedback,
+      })),
+      ...baseTasks,
     ];
 
     const competencies = [

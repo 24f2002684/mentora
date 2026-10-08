@@ -76,6 +76,15 @@ export default function StudentJourneyPage() {
       setCompetencies(comps);
     }
     load();
+
+    const handleCompSync = async () => {
+      const comps = await getStudentCompetencies(studentId);
+      setCompetencies(comps);
+    };
+    window.addEventListener("mentora_competencies_updated", handleCompSync);
+    return () => {
+      window.removeEventListener("mentora_competencies_updated", handleCompSync);
+    };
   }, [user, studentId]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {

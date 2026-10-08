@@ -185,7 +185,12 @@ export async function POST(req: NextRequest) {
 
 [CURRENT TUTOR MODE]
 Mode: "${mode}"
-Remember: Keep messages short, engaging, and Socratic. Do NOT give direct answers. Push the student to formulate hypotheses and test their reasoning.`;
+Remember: Keep messages short, engaging, and Socratic. Do NOT give direct answers. Push the student to formulate hypotheses and test their reasoning.
+
+[CRITICAL THINKING EVALUATION]
+Evaluate how the student thinks critically in this turn (challenging assumptions, logical consistency, analytical depth).
+At the very end of your response, append an evaluation comment on a new line:
+<!-- EVAL: {"score": 88, "level": "Strong", "critique": "Solid inquiry with well-formulated counter-hypothesis."} -->`;
 
     let replyContent: string | null = null;
     let providerUsed: "gemini" | "claude" = "gemini";
@@ -220,11 +225,53 @@ Remember: Keep messages short, engaging, and Socratic. Do NOT give direct answer
       );
     }
 
+    let criticalThinkingScore = 85;
+    let criticalThinkingLevel = "Developing";
+    let criticalThinkingCritique = "Demonstrated active Socratic engagement and reflective inquiry.";
+
+    const evalMatch = replyContent.match(/<!--\s*EVAL:\s*(\{.*?\})\s*-->/);
+    if (evalMatch) {
+      try {
+        const parsed = JSON.parse(evalMatch[1]);
+        if (parsed.score) criticalThinkingScore = Math.min(100, Math.max(50, Number(parsed.score)));
+        if (parsed.level) criticalThinkingLevel = parsed.level;
+        if (parsed.critique) criticalThinkingCritique = parsed.critique;
+        replyContent = replyContent.replace(evalMatch[0], "").trim();
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+
+    // Update student's critical thinking competency score in Firestore
+    if (session?.uid) {
+      try {
+        const compId = `${session.uid}_Critical_Thinking`;
+        const compRef = doc(db, "competency_scores", compId);
+        const compSnap = await getDoc(compRef);
+        if (compSnap.exists()) {
+          const cData = compSnap.data() as CompetencyScore;
+          await updateDoc(compRef, {
+            evidenceCount: (cData.evidenceCount || 1) + 1,
+            level: criticalThinkingLevel as any,
+            trend: "up",
+            lastUpdated: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        console.warn("Competency update bypassed:", err.message);
+      }
+    }
+
     return NextResponse.json({
       role: "tutor",
       text: replyContent,
       mode,
       provider: providerUsed,
+      evaluation: {
+        score: criticalThinkingScore,
+        level: criticalThinkingLevel,
+        critique: criticalThinkingCritique,
+      },
     });
   } catch (error: any) {
     console.error("AI Tutor endpoint error:", error);

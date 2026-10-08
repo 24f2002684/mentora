@@ -18,6 +18,7 @@ function AssignTaskForm() {
 
   const [students, setStudents] = useState<StudentSummary[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState(preselectedStudentId);
+  const [studentSearch, setStudentSearch] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("2026-10-25");
@@ -41,6 +42,18 @@ function AssignTaskForm() {
     load();
   }, [user, mentorEmail, selectedStudentId]);
 
+  const filteredStudents = students.filter((s) => {
+    if (!studentSearch.trim()) return true;
+    const q = studentSearch.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.vrcfId.toLowerCase().includes(q) ||
+      s.course.toLowerCase().includes(q) ||
+      s.college.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q)
+    );
+  });
+
   const toggleSkill = (skill: string) => {
     if (selectedSkills.includes(skill)) {
       if (selectedSkills.length > 1) {
@@ -59,9 +72,13 @@ function AssignTaskForm() {
     setError(null);
     setSuccess(false);
 
+    const chosenStudent = students.find((s) => s.id === selectedStudentId);
+
     try {
       await assignMentorTask({
         studentId: selectedStudentId,
+        studentName: chosenStudent?.name || "VRCF Scholar",
+        studentEmail: chosenStudent?.email,
         mentorId: user?.uid || "mentor-default",
         mentorName: profile?.name || "VRCF Mentor",
         title: title.trim(),
@@ -97,7 +114,7 @@ function AssignTaskForm() {
           Assign Mentor Task
         </h1>
         <p className="text-sm text-muted-theme mt-1">
-          Provide targeted inquiry prompts, case study exercises, and competencies for your scholar.
+          Select any scholar from the VRCF Foundation roster ({students.length} scholars available) and assign targeted inquiry prompts.
         </p>
       </div>
 
@@ -118,20 +135,34 @@ function AssignTaskForm() {
       {/* Form Card */}
       <div className="card-theme p-6 md:p-8">
         <form onSubmit={handleAssign} className="space-y-6">
-          {/* Select Scholar / Group */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-theme uppercase tracking-wider mb-2">
-              Select Scholar
-            </label>
+          {/* Select Scholar / Filter */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-muted-theme uppercase tracking-wider">
+                Select Scholar ({students.length} Total Scholars)
+              </label>
+              <span className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">
+                {filteredStudents.length} matching search
+              </span>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search scholar by Name, VRCF ID, Degree, or College..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              className="w-full input-theme text-xs py-2 mb-2"
+            />
+
             <select
               value={selectedStudentId}
               onChange={(e) => setSelectedStudentId(e.target.value)}
               className="w-full input-theme text-sm"
               required
             >
-              {students.map((st) => (
+              {filteredStudents.map((st) => (
                 <option key={st.id} value={st.id}>
-                  {st.name} ({st.email}) &mdash; {st.course}
+                  [{st.vrcfId}] {st.name} &mdash; {st.course} ({st.college})
                 </option>
               ))}
             </select>

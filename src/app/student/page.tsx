@@ -74,7 +74,7 @@ export default function StudentHomePage() {
     async function loadData() {
       try {
         const [loadedTasks, loadedComps, loadedStats, loadedBoard] = await Promise.all([
-          getStudentTasks(studentId),
+          getStudentTasks(studentId, user?.email || undefined),
           getStudentCompetencies(studentId),
           getStudentActivityStats(studentId),
           getStudentVisionBoard(studentId),
@@ -100,6 +100,16 @@ export default function StudentHomePage() {
     if (user) {
       loadData();
     }
+
+    const handleSync = () => {
+      loadData();
+    };
+    window.addEventListener("mentora_task_updated", handleSync);
+    window.addEventListener("mentora_competencies_updated", handleSync);
+    return () => {
+      window.removeEventListener("mentora_task_updated", handleSync);
+      window.removeEventListener("mentora_competencies_updated", handleSync);
+    };
   }, [user, studentId]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {

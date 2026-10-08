@@ -20,6 +20,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Tag,
+  Star,
+  GraduationCap,
+  Award,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,12 +32,15 @@ import { useRouter } from "next/navigation";
 export default function StudentTasksPage() {
   const { user } = useAuth();
   const studentId = user?.uid || "student-default";
+  const studentEmail = user?.email || undefined;
   const router = useRouter();
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "open" | "mentor" | "done">("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submittingTaskModal, setSubmittingTaskModal] = useState<TaskItem | null>(null);
+  const [submissionNotes, setSubmissionNotes] = useState("");
 
   // New task form state
   const [title, setTitle] = useState("");
@@ -45,7 +53,7 @@ export default function StudentTasksPage() {
     async function load() {
       if (!user) return;
       try {
-        const data = await getStudentTasks(studentId);
+        const data = await getStudentTasks(studentId, studentEmail);
         setTasks(data);
       } catch (e) {
         console.error("Error loading tasks:", e);
@@ -54,13 +62,40 @@ export default function StudentTasksPage() {
       }
     }
     load();
-  }, [user, studentId]);
+
+    const handleTaskUpdated = () => {
+      load();
+    };
+    window.addEventListener("mentora_task_updated", handleTaskUpdated);
+    return () => {
+      window.removeEventListener("mentora_task_updated", handleTaskUpdated);
+    };
+  }, [user, studentId, studentEmail]);
 
   const handleStatusChange = async (taskId: string, newStatus: "open" | "in_progress" | "done") => {
+    if (newStatus === "done") {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        setSubmittingTaskModal(task);
+        return;
+      }
+    }
+
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
     await updateTaskStatus(taskId, newStatus);
+  };
+
+  const handleConfirmSubmitWork = async () => {
+    if (!submittingTaskModal) return;
+    const taskId = submittingTaskModal.id;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: "done", submissionNotes } : t))
+    );
+    await updateTaskStatus(taskId, "done", submissionNotes);
+    setSubmittingTaskModal(null);
+    setSubmissionNotes("");
   };
 
   const handleCreateSelfTask = async (e: React.FormEvent) => {
@@ -228,6 +263,56 @@ export default function StudentTasksPage() {
                   </div>
                 </div>
 
+                {/* Mentor Review & Grading Evaluation Block */}
+                {(task.grade || task.remarks || task.feedback) && (
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs md:text-sm text-emerald-900 dark:text-emerald-100 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-bold">
+                        <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>Mentor Evaluation Recorded</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {task.grade && (
+                          <span className="px-2.5 py-0.5 rounded-full font-bold text-xs bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 flex items-center gap-1">
+                            <GraduationCap className="w-3.5 h-3.5" />
+                            <span>Grade: {task.grade} {task.score ? `(${task.score}/100)` : ""}</span>
+                          </span>
+                        )}
+                        {task.rating && (
+                          <div className="flex items-center gap-0.5 text-amber-500">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3.5 h-3.5 ${
+                                  star <= (task.rating || 5)
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-muted-theme/30"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {(task.remarks || task.feedback) && (
+                      <p className="text-muted-theme pl-6">
+                        <strong className="text-primary-theme">Mentor Remarks:</strong> &ldquo;{task.remarks || task.feedback}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Scholar Submission Notes if present */}
+                {task.submissionNotes && (
+                  <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-xs text-muted-theme space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-blue-700 dark:text-blue-300">
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Your Submission Notes:</span>
+                    </div>
+                    <p className="italic pl-5">&ldquo;{task.submissionNotes}&rdquo;</p>
+                  </div>
+                )}
+
                 {/* Footer of Task card: skills pills & "Start with AI Tutor" */}
                 <div className="pt-3 border-t border-theme flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -242,21 +327,91 @@ export default function StudentTasksPage() {
                     ))}
                   </div>
 
-                  {/* AI Tutor Pre-load Button for Mentor Tasks */}
-                  {task.assignedBy === "mentor" && (
-                    <Link
-                      href={`/student/tutor?taskId=${encodeURIComponent(task.id)}&topic=${encodeURIComponent(task.title)}`}
-                      className="btn-secondary text-xs py-2 px-4 flex items-center gap-2 self-start sm:self-auto"
-                    >
-                      <Bot className="w-3.5 h-3.5" />
-                      <span>Start with AI Tutor</span>
-                    </Link>
-                  )}
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {task.status !== "done" && (
+                      <button
+                        onClick={() => {
+                          setSubmittingTaskModal(task);
+                          setSubmissionNotes("");
+                        }}
+                        className="btn-tertiary text-xs py-2 px-3 flex items-center gap-1 text-teal-600 dark:text-teal-400 font-semibold"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Submit Work</span>
+                      </button>
+                    )}
+
+                    {/* AI Tutor Pre-load Button for Mentor Tasks */}
+                    {task.assignedBy === "mentor" && (
+                      <Link
+                        href={`/student/tutor?taskId=${encodeURIComponent(task.id)}&topic=${encodeURIComponent(task.title)}`}
+                        className="btn-secondary text-xs py-2 px-4 flex items-center gap-2"
+                      >
+                        <Bot className="w-3.5 h-3.5" />
+                        <span>Start with AI Tutor</span>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
+
+        {/* Modal: Submit Task Work */}
+        {submittingTaskModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="card-theme max-w-lg w-full p-6 md:p-8 space-y-5 shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-theme">
+                <div>
+                  <h3 className="text-lg font-bold text-primary-theme">Complete Task</h3>
+                  <p className="text-xs text-muted-theme">{submittingTaskModal.title}</p>
+                </div>
+                <button
+                  onClick={() => setSubmittingTaskModal(null)}
+                  className="btn-tertiary text-xs p-1"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-theme uppercase tracking-wider mb-1.5">
+                    Submission Notes &amp; Key Findings
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="Summarize your findings, key arguments, or what you concluded from this exercise for your mentor..."
+                    value={submissionNotes}
+                    onChange={(e) => setSubmissionNotes(e.target.value)}
+                    className="w-full input-theme text-sm leading-relaxed"
+                  />
+                  <p className="text-[11px] text-muted-theme mt-1">
+                    Your mentor will review this submission, assign your grade and marks, and evaluate your targeted competencies.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-theme">
+                  <button
+                    onClick={() => setSubmittingTaskModal(null)}
+                    className="btn-tertiary text-xs px-4 py-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmSubmitWork}
+                    className="btn-primary text-xs px-5 py-2 flex items-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit for Mentor Review</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal: Add Self Task */}
         {isModalOpen && (

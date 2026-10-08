@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import DashboardShell from "@/components/layout/DashboardShell";
 import { useAuth } from "@/lib/auth-context";
-import { getStudentVisionBoard } from "@/lib/student-data";
+import { getStudentVisionBoard, updateStudentCompetencyScore } from "@/lib/student-data";
 import { TutorMode, ChatMessage, VisionBoard } from "@/types";
 import { useSearchParams } from "next/navigation";
 import {
@@ -17,6 +17,14 @@ import {
   BookOpen,
   ArrowRight,
   Compass,
+  History,
+  Trash2,
+  Plus,
+  Brain,
+  TrendingUp,
+  X,
+  ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 
 const TUTOR_MODES: { mode: TutorMode; description: string }[] = [
@@ -26,6 +34,17 @@ const TUTOR_MODES: { mode: TutorMode; description: string }[] = [
   { mode: "Explain Back", description: "Teach the concept to probe hidden assumptions" },
   { mode: "Career Connect", description: "Link ideas explicitly to your stated career goals" },
 ];
+
+interface SavedSession {
+  id: string;
+  title: string;
+  timestamp: number;
+  mode: TutorMode;
+  messages: ChatMessage[];
+  criticalThinkingScore?: number;
+  criticalThinkingLevel?: string;
+  criticalThinkingCritique?: string;
+}
 
 function TutorChatContent() {
   const { user } = useAuth();
@@ -44,7 +63,31 @@ function TutorChatContent() {
   const [loggedComps, setLoggedComps] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState(`session-${Date.now()}`);
 
+  // Critical Thinking Evaluation State
+  const [latestEvaluation, setLatestEvaluation] = useState<{
+    score: number;
+    level: string;
+    critique: string;
+  } | null>(null);
+
+  // Chat History States
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(`mentora_tutor_history_${studentId}`);
+      if (stored) {
+        setSavedSessions(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.warn("Could not load chat history:", e);
+    }
+  }, [studentId]);
 
   useEffect(() => {
     async function loadBoard() {
@@ -72,6 +115,99 @@ function TutorChatContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Persist session to history helper
+  const persistSession = (
+    sid: string,
+    mode: TutorMode,
+    msgs: ChatMessage[],
+    evalObj?: { score: number; level: string; critique: string } | null
+  ) => {
+    if (msgs.length <= 1) return;
+    try {
+      // Find first student query for title
+      const firstStudentMsg = msgs.find((m) => m.role === "student");
+      const title = firstStudentMsg
+        ? firstStudentMsg.text.slice(0, 48) + (firstStudentMsg.text.length > 48 ? "..." : "")
+        : preloadedTopic || `Inquiry on ${mode}`;
+
+      const updatedSession: SavedSession = {
+        id: sid,
+        title,
+        timestamp: Date.now(),
+        mode,
+        messages: msgs,
+        criticalThinkingScore: evalObj?.score,
+        criticalThinkingLevel: evalObj?.level,
+        criticalThinkingCritique: evalObj?.critique,
+      };
+
+      setSavedSessions((prev) => {
+        const filtered = prev.filter((s) => s.id !== sid);
+        const nextList = [updatedSession, ...filtered].slice(0, 20); // Keep last 20 sessions
+        localStorage.setItem(`mentora_tutor_history_${studentId}`, JSON.stringify(nextList));
+        return nextList;
+      });
+    } catch (e) {
+      console.warn("Error persisting session:", e);
+    }
+  };
+
+  const handleStartNewInquiry = () => {
+    const newSid = `session-${Date.now()}`;
+    setSessionId(newSid);
+    setSessionCompleted(false);
+    setLatestEvaluation(null);
+    setMessages([
+      {
+        role: "tutor",
+        text: `Greetings! I am ready for a new Socratic investigation. What idea, dilemma, or concept would you like to explore?`,
+        timestamp: Date.now(),
+      },
+    ]);
+    setShowHistoryDrawer(false);
+  };
+
+  const handleResumeSession = (session: SavedSession) => {
+    setSessionId(session.id);
+    setCurrentMode(session.mode);
+    setMessages(session.messages);
+    setSessionCompleted(false);
+    if (session.criticalThinkingScore && session.criticalThinkingLevel && session.criticalThinkingCritique) {
+      setLatestEvaluation({
+        score: session.criticalThinkingScore,
+        level: session.criticalThinkingLevel,
+        critique: session.criticalThinkingCritique,
+      });
+    } else {
+      setLatestEvaluation(null);
+    }
+    setShowHistoryDrawer(false);
+  };
+
+  const handleDeleteSession = (idToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedSessions.filter((s) => s.id !== idToDelete);
+    setSavedSessions(updated);
+    try {
+      localStorage.setItem(`mentora_tutor_history_${studentId}`, JSON.stringify(updated));
+    } catch {}
+
+    // If currently viewing deleted session, reset to fresh inquiry
+    if (sessionId === idToDelete) {
+      handleStartNewInquiry();
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    if (confirm("Are you sure you want to clear all previous chat history? This will delete all past session logs and free up storage.")) {
+      setSavedSessions([]);
+      try {
+        localStorage.removeItem(`mentora_tutor_history_${studentId}`);
+      } catch {}
+      handleStartNewInquiry();
+    }
+  };
+
   const handleModeChange = (mode: TutorMode) => {
     if (mode === currentMode) return;
     setCurrentMode(mode);
@@ -82,7 +218,9 @@ function TutorChatContent() {
       text: `[Switched mode to ${mode}] How would you approach this problem under our ${mode.toLowerCase()} lens? Give me your initial hypothesis.`,
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, transitionNotice]);
+    const updated = [...messages, transitionNotice];
+    setMessages(updated);
+    persistSession(sessionId, mode, updated, latestEvaluation);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -127,7 +265,23 @@ function TutorChatContent() {
         timestamp: Date.now(),
       };
 
-      setMessages((prev) => [...prev, tutorReply]);
+      const finalMessages = [...newHistory, tutorReply];
+      setMessages(finalMessages);
+
+      // Handle critical thinking evaluation returned by AI
+      if (data.evaluation) {
+        setLatestEvaluation(data.evaluation);
+        await updateStudentCompetencyScore(
+          studentId,
+          "Critical Thinking",
+          data.evaluation.level as any,
+          "up",
+          1
+        );
+      }
+
+      // Save to chat history
+      persistSession(sessionId, currentMode, finalMessages, data.evaluation || latestEvaluation);
     } catch (err: any) {
       console.error("Chat error:", err);
       const displayMsg =
@@ -165,7 +319,11 @@ function TutorChatContent() {
 
       const data = await res.json();
       setSessionCompleted(true);
-      setLoggedComps(data.loggedCompetencies || ["Critical Thinking", "Analytical Thinking"]);
+      const comps = data.loggedCompetencies || ["Critical Thinking", "Analytical Thinking"];
+      setLoggedComps(comps);
+      for (const c of comps) {
+        await updateStudentCompetencyScore(studentId, c, "Strong", "up", 1);
+      }
     } catch (e) {
       console.error("Failed to complete session:", e);
     } finally {
@@ -192,17 +350,55 @@ function TutorChatContent() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <button
+            onClick={() => setShowHistoryDrawer(true)}
+            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5"
+            title="View or manage previous inquiry conversations"
+          >
+            <History className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            <span>Chat History ({savedSessions.length})</span>
+          </button>
+
+          <button
+            onClick={handleStartNewInquiry}
+            className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+            title="Start a fresh Socratic investigation"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Inquiry</span>
+          </button>
+
           <button
             onClick={handleCompleteSession}
             disabled={messages.length < 2 || sessionCompleted}
-            className="btn-secondary text-xs py-2 px-4 flex items-center gap-2"
+            className="btn-primary text-xs py-2 px-4 flex items-center gap-2"
           >
-            <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <CheckCircle2 className="w-4 h-4" />
             <span>{sessionCompleted ? "Session Logged" : "Complete & Log Session"}</span>
           </button>
         </div>
       </div>
+
+      {/* Critical Thinking Real-Time Evaluation Banner */}
+      {latestEvaluation && (
+        <div className="p-3.5 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-teal-900 dark:text-teal-100 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+              <Brain className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-xs">Critical Thinking Evaluated: </span>
+              <span className="px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-teal-500/25 text-teal-800 dark:text-teal-200 ml-1">
+                Score: {latestEvaluation.score}/100 ({latestEvaluation.level})
+              </span>
+            </div>
+          </div>
+          <p className="text-muted-theme italic pl-9 sm:pl-0 text-[11px]">
+            &ldquo;{latestEvaluation.critique}&rdquo;
+          </p>
+        </div>
+      )}
 
       {/* Completion Notice Banner */}
       {sessionCompleted && (
@@ -324,6 +520,104 @@ function TutorChatContent() {
           </p>
         </div>
       </div>
+
+      {/* Slide-Over Drawer: Chat History */}
+      {showHistoryDrawer && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-surface h-full border-l border-theme p-6 flex flex-col shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-theme">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h3 className="font-bold text-base text-primary-theme">Inquiry History</h3>
+                <span className="text-xs text-muted-theme font-medium">({savedSessions.length})</span>
+              </div>
+              <button
+                onClick={() => setShowHistoryDrawer(false)}
+                className="btn-tertiary p-1.5 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={handleStartNewInquiry}
+                className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5 flex-1 justify-center"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Start New Inquiry</span>
+              </button>
+              {savedSessions.length > 0 && (
+                <button
+                  onClick={handleClearAllHistory}
+                  className="btn-tertiary text-xs py-2 px-3 text-red-600 dark:text-red-400 flex items-center gap-1 hover:bg-red-500/10"
+                  title="Clear all chat history to free storage"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear All History</span>
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-theme">
+              Previous inquiry dialogues stored locally. Delete individual sessions or clear all history to free device storage.
+            </p>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {savedSessions.length === 0 ? (
+                <div className="p-8 text-center text-xs text-muted-theme border border-dashed border-theme rounded-2xl">
+                  <History className="w-8 h-8 mx-auto mb-2 opacity-30 text-teal-600" />
+                  <p className="font-semibold text-primary-theme">No chat history</p>
+                  <p className="mt-1">All past conversations cleared or none started yet.</p>
+                </div>
+              ) : (
+                savedSessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => handleResumeSession(s)}
+                    className={`p-3.5 rounded-2xl border border-theme transition-all cursor-pointer hover:border-teal-500/40 flex items-start justify-between gap-2.5 ${
+                      s.id === sessionId
+                        ? "bg-teal-500/10 border-teal-500/40 shadow-sm"
+                        : "bg-black/[0.01] dark:bg-white/[0.01]"
+                    }`}
+                  >
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/15 text-teal-700 dark:text-teal-300">
+                          {s.mode}
+                        </span>
+                        {s.criticalThinkingScore && (
+                          <span className="text-[10px] font-bold text-teal-800 dark:text-teal-200 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full">
+                            🧠 {s.criticalThinkingScore}/100
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted-theme">
+                          {new Date(s.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-primary-theme truncate">
+                        {s.title}
+                      </p>
+                      <p className="text-[11px] text-muted-theme">
+                        {s.messages.length} messages
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSession(s.id, e)}
+                      className="p-1.5 text-muted-theme hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                      title="Delete this inquiry"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

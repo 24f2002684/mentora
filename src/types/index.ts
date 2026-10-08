@@ -33,6 +33,8 @@ export interface VisionBoard {
 export interface TaskItem {
   id: string;
   studentId: string;
+  studentName?: string;
+  studentEmail?: string;
   title: string;
   description?: string;
   assignedBy: "mentor" | "self";
@@ -42,6 +44,13 @@ export interface TaskItem {
   status: "open" | "in_progress" | "done";
   skills: string[];
   feedback?: string;
+  grade?: string;
+  score?: number;
+  rating?: number;
+  remarks?: string;
+  submissionNotes?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
   createdAt?: any;
 }
 
@@ -56,9 +65,12 @@ export interface ChatMessage {
 export interface TutorSession {
   id: string;
   studentId: string;
+  title?: string;
   mode: TutorMode;
   messages: ChatMessage[];
   competenciesTouched: string[];
+  criticalThinkingScore?: number;
+  criticalThinkingLevel?: string;
   startedAt: any;
   endedAt?: any;
 }

@@ -18,6 +18,8 @@ import {
   ActivityLog,
   TutorSession,
   VRCF_COMPETENCIES,
+  CompetencyLevel,
+  CompetencyTrend,
 } from "@/types";
 
 // Default initial vision board for new students
@@ -94,7 +96,36 @@ export async function updateStudentVisionBoard(
   }
 }
 
-export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {
+export function getLocalTasks(): TaskItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("mentora_tasks");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalTask(task: TaskItem): void {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getLocalTasks();
+    const idx = existing.findIndex((t) => t.id === task.id);
+    let updated: TaskItem[];
+    if (idx >= 0) {
+      updated = [...existing];
+      updated[idx] = { ...updated[idx], ...task };
+    } else {
+      updated = [task, ...existing];
+    }
+    localStorage.setItem("mentora_tasks", JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("mentora_task_updated", { detail: task }));
+  } catch (e) {
+    console.warn("Could not save local task:", e);
+  }
+}
+
+export async function getStudentTasks(studentId: string, studentEmail?: string): Promise<TaskItem[]> {
   const tasks: TaskItem[] = [];
   try {
     const q = query(collection(db, "tasks"), where("studentId", "==", studentId));
@@ -106,12 +137,29 @@ export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {
     console.warn("Error fetching tasks:", err);
   }
 
+  // Merge with local tasks
+  const localList = getLocalTasks();
+  for (const lt of localList) {
+    const matchesId = lt.studentId === studentId || lt.studentId === "student-default";
+    const matchesEmail = studentEmail && lt.studentEmail && lt.studentEmail.toLowerCase() === studentEmail.toLowerCase();
+    const matchesVrcf = studentId.startsWith("vrcf-") && lt.studentId === studentId;
+    if (matchesId || matchesEmail || matchesVrcf) {
+      const existingIdx = tasks.findIndex((t) => t.id === lt.id);
+      if (existingIdx >= 0) {
+        tasks[existingIdx] = { ...tasks[existingIdx], ...lt };
+      } else {
+        tasks.push(lt);
+      }
+    }
+  }
+
   if (tasks.length === 0) {
     // Seed default tasks for demo & first time
     const defaultTasks: TaskItem[] = [
       {
         id: "task-seed-1",
         studentId,
+        studentName: "VRCF Scholar",
         title: "Analyze algorithmic bias in university admissions case study",
         description: "Evaluate disparate impact metrics and formulate 3 mitigation strategies using Socratic principles.",
         assignedBy: "mentor",
@@ -119,12 +167,13 @@ export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {
         mentorName: "VRCF Mentor (Suhail Akthar)",
         dueDate: "2026-10-18",
         status: "open",
-        skills: ["Critical Thinking", "Analytical Thinking", "Ethics"],
+        skills: ["Critical Thinking", "Analytical Thinking", "Innovative Thinking"],
         createdAt: new Date().toISOString(),
       },
       {
         id: "task-seed-2",
         studentId,
+        studentName: "VRCF Scholar",
         title: "Prepare reflective brief on Socratic inquiry session",
         description: "Synthesize key insights from your recent AI tutor practice session on logical fallacies.",
         assignedBy: "mentor",
@@ -138,6 +187,7 @@ export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {
       {
         id: "task-seed-3",
         studentId,
+        studentName: "VRCF Scholar",
         title: "Review calculus optimization problems for midterm",
         description: "Practice Lagrange multipliers and constraint optimization exercises.",
         assignedBy: "self",
@@ -151,6 +201,7 @@ export async function getStudentTasks(studentId: string): Promise<TaskItem[]> {
 
     try {
       for (const t of defaultTasks) {
+        saveLocalTask(t);
         await setDoc(doc(db, "tasks", t.id), t);
       }
       return defaultTasks;
@@ -169,6 +220,8 @@ export async function createStudentTask(task: Omit<TaskItem, "id" | "createdAt">
     createdAt: new Date().toISOString(),
   };
 
+  saveLocalTask(newTask);
+
   try {
     await setDoc(doc(db, "tasks", newTask.id), newTask);
   } catch (err) {
@@ -178,16 +231,108 @@ export async function createStudentTask(task: Omit<TaskItem, "id" | "createdAt">
   return newTask;
 }
 
-export async function updateTaskStatus(taskId: string, status: "open" | "in_progress" | "done"): Promise<void> {
+export async function updateTaskStatus(
+  taskId: string,
+  status: "open" | "in_progress" | "done",
+  submissionNotes?: string
+): Promise<void> {
+  const updates: Partial<TaskItem> = { status };
+  if (submissionNotes) {
+    updates.submissionNotes = submissionNotes;
+  }
+
+  // Update local
+  const localList = getLocalTasks();
+  const existing = localList.find((t) => t.id === taskId);
+  if (existing) {
+    saveLocalTask({ ...existing, ...updates });
+  }
+
   try {
-    await updateDoc(doc(db, "tasks", taskId), { status });
+    await updateDoc(doc(db, "tasks", taskId), updates);
   } catch (err) {
     console.warn("Error updating task status:", err);
   }
 }
 
+export async function updateStudentCompetencyScore(
+  studentId: string,
+  competency: string,
+  level: CompetencyLevel,
+  trend: CompetencyTrend = "up",
+  deltaEvidence: number = 1
+): Promise<void> {
+  const compId = `${studentId}_${competency.replace(/[\/\s]/g, "_")}`;
+  const compRef = doc(db, "competency_scores", compId);
+
+  // Update localStorage
+  if (typeof window !== "undefined") {
+    try {
+      const key = `mentora_comps_${studentId}`;
+      const raw = localStorage.getItem(key);
+      const comps: CompetencyScore[] = raw ? JSON.parse(raw) : [];
+      const idx = comps.findIndex((c) => c.competency === competency);
+      if (idx >= 0) {
+        comps[idx].level = level;
+        comps[idx].trend = trend;
+        comps[idx].evidenceCount = (comps[idx].evidenceCount || 1) + deltaEvidence;
+        comps[idx].lastUpdated = new Date().toISOString();
+      } else {
+        comps.push({
+          studentId,
+          competency,
+          level,
+          trend,
+          evidenceCount: deltaEvidence + 1,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+      localStorage.setItem(key, JSON.stringify(comps));
+      window.dispatchEvent(new CustomEvent("mentora_competencies_updated", { detail: { studentId } }));
+    } catch (e) {
+      console.warn("Local comp update bypassed:", e);
+    }
+  }
+
+  try {
+    const snap = await getDoc(compRef);
+    if (snap.exists()) {
+      const data = snap.data() as CompetencyScore;
+      await updateDoc(compRef, {
+        level,
+        trend,
+        evidenceCount: (data.evidenceCount || 1) + deltaEvidence,
+        lastUpdated: new Date().toISOString(),
+      });
+    } else {
+      await setDoc(compRef, {
+        studentId,
+        competency,
+        level,
+        trend,
+        evidenceCount: deltaEvidence + 1,
+        lastUpdated: new Date().toISOString(),
+      });
+    }
+  } catch (err: any) {
+    console.warn("Firestore competency write skipped:", err.message);
+  }
+}
+
 export async function getStudentCompetencies(studentId: string): Promise<CompetencyScore[]> {
   const scores: CompetencyScore[] = [];
+
+  // Check local cache
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(`mentora_comps_${studentId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as CompetencyScore[];
+        if (parsed.length > 0) return parsed;
+      }
+    } catch {}
+  }
+
   try {
     const q = query(collection(db, "competency_scores"), where("studentId", "==", studentId));
     const snap = await getDocs(q);
@@ -200,6 +345,11 @@ export async function getStudentCompetencies(studentId: string): Promise<Compete
 
   if (scores.length === 0) {
     const defaults = getDefaultCompetencyScores(studentId);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`mentora_comps_${studentId}`, JSON.stringify(defaults));
+      } catch {}
+    }
     try {
       for (const s of defaults) {
         const id = `${studentId}_${s.competency.replace(/[\/\s]/g, "_")}`;
