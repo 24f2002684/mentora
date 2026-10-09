@@ -11,6 +11,18 @@ export interface VRCFStudent {
   course: string;
   college: string;
   email: string;
+  cohort?: string;
+  homeAddress?: string;
+  district?: string;
+  collegeLocation?: string;
+  phone?: string;
+  parentPhone?: string;
+  yearOfStudy?: string;
+  totalYears?: string;
+  hostelOrDayScholar?: string;
+  tuitionFeeTerm?: string;
+  tuitionFeeAmount?: string;
+  hostelFee?: string;
 }
 
 const ROLES_FILE_PATH = path.join(process.cwd(), "src", "data", "roles_data.json");

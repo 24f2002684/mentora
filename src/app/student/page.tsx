@@ -13,6 +13,8 @@ import {
   saveStoredAvatar,
 } from "@/lib/student-data";
 import { TaskItem, CompetencyScore, VisionBoard } from "@/types";
+import { getScholarProfileByParam } from "@/lib/scholar-roster";
+import { UnifiedScholarProfile } from "@/components/profile/ScholarProfileModal";
 import Link from "next/link";
 import {
   Flame,
@@ -33,12 +35,25 @@ import {
   Loader2,
   Target,
   Award,
+  Building,
+  MapPin,
+  Home,
+  Phone,
+  Mail,
+  CreditCard,
+  UserCheck,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
+  Calendar,
 } from "lucide-react";
 
 export default function StudentHomePage() {
   const { user, profile } = useAuth();
   const studentId = user?.uid || "student-default";
 
+  const [scholarDetails, setScholarDetails] = useState<UnifiedScholarProfile | null>(null);
+  const [showDossier, setShowDossier] = useState(true);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [competencies, setCompetencies] = useState<CompetencyScore[]>([]);
   const [visionBoard, setVisionBoard] = useState<VisionBoard | null>(null);
@@ -73,6 +88,13 @@ export default function StudentHomePage() {
 
     async function loadData() {
       try {
+        const resolved = getScholarProfileByParam(
+          user?.email || profile?.vrcfId || profile?.email || "032"
+        );
+        if (resolved) {
+          setScholarDetails(resolved);
+        }
+
         const [loadedTasks, loadedComps, loadedStats, loadedBoard] = await Promise.all([
           getStudentTasks(studentId, user?.email || undefined),
           getStudentCompetencies(studentId),
@@ -83,9 +105,9 @@ export default function StudentHomePage() {
         setCompetencies(loadedComps);
         setStats(loadedStats);
         setVisionBoard(loadedBoard);
-        setCareerGoal(loadedBoard.careerGoal || "");
-        setShortGoals(loadedBoard.shortTermGoals || []);
-        setLongGoals(loadedBoard.longTermGoals || []);
+        setCareerGoal(loadedBoard.careerGoal || (resolved ? resolved.careerGoal : ""));
+        setShortGoals(loadedBoard.shortTermGoals || (resolved ? resolved.shortTermGoals : []));
+        setLongGoals(loadedBoard.longTermGoals || (resolved ? resolved.longTermGoals : []));
         if (loadedBoard.avatarUrl) {
           setAvatarUrl(loadedBoard.avatarUrl);
           saveStoredAvatar(studentId, loadedBoard.avatarUrl);
@@ -256,21 +278,24 @@ export default function StudentHomePage() {
             {/* Profile Info */}
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                  VRCF Scholar
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 font-mono">
+                  VRCF ID: {scholarDetails?.vrcfId || profile?.vrcfId || "032"}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-teal-500/10 text-teal-700 dark:text-teal-300">
-                  Active Mentorship
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  {scholarDetails?.cohort || profile?.cohort || "Cohort 1"}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300">
+                  {scholarDetails?.hostelOrDayScholar || profile?.hostelOrDayScholar || "Dayscholar"}
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary-theme">
-                Welcome back, {profile?.name || user?.displayName || "Scholar"}
+                Welcome back, {scholarDetails?.name || profile?.name || user?.displayName || "Scholar"}
               </h1>
               <p className="text-xs md:text-sm text-muted-theme font-mono">
-                {user?.email}
+                {scholarDetails?.email || user?.email}
               </p>
               <p className="text-xs text-muted-theme pt-1">
-                <strong>Course:</strong> {visionBoard?.course || "Undergraduate Degree"} &middot; <strong>Focus:</strong> {visionBoard?.focusArea || "Academic Excellence"}
+                <strong>Course:</strong> {scholarDetails?.course || visionBoard?.course || "Undergraduate Degree"} &middot; <strong>College:</strong> {scholarDetails?.college || profile?.college || "VRCF College"}
               </p>
             </div>
           </div>
@@ -304,6 +329,198 @@ export default function StudentHomePage() {
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 text-xs font-medium animate-fadeIn">
                 <Sparkles className="w-4 h-4" />
                 <span>{aiNotice}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Verified Scholar Profile & Institutional Record Card */}
+        {scholarDetails && (
+          <div className="card-theme p-6 md:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-theme">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-primary-theme">
+                    Verified Scholar Profile &amp; Institutional Record
+                  </h2>
+                  <p className="text-xs text-muted-theme">
+                    Official particulars on file with VRCF Foundation and visible to your assigned mentor &amp; trustees
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDossier(!showDossier)}
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <span>{showDossier ? "Collapse Details" : "View Full Profile"}</span>
+                {showDossier ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {showDossier && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* 1. Contact & Residential Details */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-theme flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Contact &amp; Residential Information</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Registered Email (Self)</span>
+                      </span>
+                      <p className="text-xs font-medium text-primary-theme font-mono break-all">
+                        {scholarDetails.email || "Not specified"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Student Phone Number</span>
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme font-mono">
+                        {scholarDetails.phone || "Not specified"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Parent&apos;s Phone Number</span>
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme font-mono">
+                        {scholarDetails.parentPhone || "Not specified"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>District</span>
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme">
+                        {scholarDetails.district || "Tamil Nadu"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1 sm:col-span-2">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Home className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Home Address</span>
+                      </span>
+                      <p className="text-xs font-medium text-primary-theme">
+                        {scholarDetails.homeAddress || "Tamil Nadu, India"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Academic & Institutional Information */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-theme flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Academic &amp; Institutional Record</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1 sm:col-span-2">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Building className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>College Name</span>
+                      </span>
+                      <p className="text-xs font-bold text-primary-theme">
+                        {scholarDetails.college}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>College Location</span>
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme">
+                        {scholarDetails.collegeLocation || "Tamil Nadu"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Course Name</span>
+                      </span>
+                      <p className="text-xs font-bold text-teal-800 dark:text-teal-200">
+                        {scholarDetails.course}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Current Year of Study</span>
+                      </span>
+                      <p className="text-xs font-bold text-primary-theme">
+                        {scholarDetails.yearOfStudy || "3rd Year"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Total Program Duration</span>
+                      </span>
+                      <p className="text-xs font-bold text-primary-theme">
+                        {scholarDetails.totalYears || "3 Years"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Residence & Financial Aid Particulars */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-theme flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Living Accommodation &amp; Financial Support</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme">
+                        Living Arrangement
+                      </span>
+                      <p className="text-xs font-bold text-teal-800 dark:text-teal-200">
+                        {scholarDetails.hostelOrDayScholar || "Dayscholar"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme">
+                        Tuition Fee Support
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme">
+                        {scholarDetails.tuitionFeeAmount && scholarDetails.tuitionFeeAmount !== "-"
+                          ? `${scholarDetails.tuitionFeeAmount} (${scholarDetails.tuitionFeeTerm || "Per Year"})`
+                          : "Covered by VRCF Scholarship"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-theme bg-surface space-y-1">
+                      <span className="text-[11px] font-semibold text-muted-theme">
+                        Hostel / Accommodation Fee
+                      </span>
+                      <p className="text-xs font-semibold text-primary-theme">
+                        {scholarDetails.hostelFee && scholarDetails.hostelFee !== "-"
+                          ? scholarDetails.hostelFee
+                          : "N/A (Dayscholar)"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

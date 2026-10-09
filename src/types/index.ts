@@ -16,8 +16,41 @@ export interface UserProfile {
   focusArea?: string;
   careerGoal?: string;
   vrcfId?: string;
+  college?: string;
+  collegeLocation?: string;
+  cohort?: string;
+  homeAddress?: string;
+  district?: string;
+  phone?: string;
+  parentPhone?: string;
+  yearOfStudy?: string;
+  totalYears?: string;
+  hostelOrDayScholar?: string;
+  tuitionFeeTerm?: string;
+  tuitionFeeAmount?: string;
+  hostelFee?: string;
   avatarUrl?: string;
   createdAt?: any;
+}
+
+export interface StudentProfileDetails {
+  vrcfId: string;
+  name: string;
+  cohort: string;
+  homeAddress: string;
+  district: string;
+  college: string;
+  collegeLocation: string;
+  phone: string;
+  parentPhone: string;
+  email: string;
+  course: string;
+  yearOfStudy: string;
+  totalYears: string;
+  hostelOrDayScholar: string;
+  tuitionFeeTerm?: string;
+  tuitionFeeAmount?: string;
+  hostelFee?: string;
 }
 
 export interface VisionBoard {

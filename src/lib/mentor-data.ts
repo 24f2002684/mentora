@@ -25,6 +25,18 @@ export interface StudentSummary {
   email: string;
   course: string;
   college: string;
+  collegeLocation?: string;
+  cohort?: string;
+  homeAddress?: string;
+  district?: string;
+  phone?: string;
+  parentPhone?: string;
+  yearOfStudy?: string;
+  totalYears?: string;
+  hostelOrDayScholar?: string;
+  tuitionFeeTerm?: string;
+  tuitionFeeAmount?: string;
+  hostelFee?: string;
   careerGoal: string;
   focusArea: string;
   topTrend: string;
@@ -53,6 +65,18 @@ export async function getMentorStudents(mentorEmail: string): Promise<StudentSum
     email: st.email || `vrcf.${st.vrcfId.toLowerCase()}@scholar.vrcf.org`,
     course: st.course,
     college: st.college,
+    collegeLocation: (st as any).collegeLocation || "Tamil Nadu",
+    cohort: (st as any).cohort || "Cohort 1",
+    homeAddress: (st as any).homeAddress || "Tamil Nadu",
+    district: (st as any).district || "Tamil Nadu",
+    phone: (st as any).phone || "",
+    parentPhone: (st as any).parentPhone || "",
+    yearOfStudy: (st as any).yearOfStudy || "3rd Year",
+    totalYears: (st as any).totalYears || "3 Years",
+    hostelOrDayScholar: (st as any).hostelOrDayScholar || "Dayscholar",
+    tuitionFeeTerm: (st as any).tuitionFeeTerm || "Per Year",
+    tuitionFeeAmount: (st as any).tuitionFeeAmount || "-",
+    hostelFee: (st as any).hostelFee || "-",
     focusArea: `${st.course} & Socratic Practice`,
     careerGoal: st.vrcfId === "032"
       ? "AI Research Fellow & Public Impact Tech Lead"
